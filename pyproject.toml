@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "aesthetic-tensor"
+version = "0.1.0"
+description = ""
+authors = ["Iliya Zhechev <iliya.zhechev@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "aesthetic_tensor" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.0.0"
+torchvision = "^0.15.1"
+matplotlib = "^3.7.1"
+seaborn = "^0.12.2"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.1.0"
+jupyter = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
