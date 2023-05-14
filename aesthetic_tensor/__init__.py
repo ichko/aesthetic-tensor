@@ -3,6 +3,8 @@ from aesthetic_tensor.core import AestheticTensor
 
 
 def aesthetify():
-    torch.Tensor.æ = torch.Tensor.ae = property(
+    prop: AestheticTensor = property(
         lambda self: AestheticTensor(self),
     )
+    torch.Tensor.ae: AestheticTensor = prop
+    torch.Tensor.æ: AestheticTensor = prop
