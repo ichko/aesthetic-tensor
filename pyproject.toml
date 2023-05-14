@@ -12,6 +12,9 @@ torch = "^2.0.0"
 torchvision = "^0.15.1"
 matplotlib = "^3.7.1"
 seaborn = "^0.12.2"
+jupyterlab = "^3.6.3"
+pyzmq = "<25"
+jupyter-client = "<8"
 
 
 [tool.poetry.group.dev.dependencies]
