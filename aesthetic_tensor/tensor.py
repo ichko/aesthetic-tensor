@@ -9,6 +9,7 @@ import torchvision
 from PIL import Image
 from aesthetic_tensor.container import AestheticContainer
 from aesthetic_tensor.observer import AestheticObserver
+from aesthetic_tensor.broadcaster import hook
 from aesthetic_tensor.utils import patch_callable
 
 
@@ -64,26 +65,23 @@ class AestheticTensor:
     def N(self):
         return AestheticContainer(self)
 
-    @property
-    def hist(self):
+    def hist(self, **kwargs):
         flat = self.np.reshape(-1)
-        fig, ax = plt.subplots(1, 1, dpi=100, figsize=(3.5, 3))
+        fig, ax = plt.subplots(1, 1, **{"dpi": 100, "figsize": (3.5, 3), **kwargs})
         sns.histplot(flat, bins=30, ax=ax)
         plt.close()
         return fig
 
-    @property
-    def plot(self):
+    def plot(self, **kwargs):
         flat = self.np.reshape(-1)
-        fig, ax = plt.subplots(1, 1, dpi=100, figsize=(3.5, 3))
+        fig, ax = plt.subplots(1, 1, **{"dpi": 100, "figsize": (3.5, 3), **kwargs})
         sns.lineplot(flat, ax=ax)
         plt.close()
         return fig
 
-    @property
-    def imshow(self):
-        fig, ax = plt.subplots(1, 1, dpi=100, figsize=(3.5, 3))
-        ax.imshow(self.np)
+    def imshow(self, cmap="viridis", **kwargs):
+        fig, ax = plt.subplots(1, 1, **{"dpi": 100, "figsize": (3.5, 3), **kwargs})
+        ax.imshow(self.np, cmap=cmap)
         plt.close()
         return fig
 
@@ -115,12 +113,12 @@ class AestheticTensor:
             if has_neg_inf
             else ""
         )
-        range_str = make_bold(f"{mi:0.5f}, {ma:0.5f}")
+        range_str = make_bold(f"{mi:0.3f}, {ma:0.3f}")
         _, type_str = str(self.target.dtype).split(".")
         type_str = make_bold(type_str)
 
-        mu_str = make_bold(f"{mean:0.5f}")
-        std_str = make_bold(f"{std:0.5f}")
+        mu_str = make_bold(f"{mean:0.3f}")
+        std_str = make_bold(f"{std:0.3f}")
         mean_std_str = f"μ={mu_str}, σ={std_str}"
 
         return f"{type_str}<{shape_str}>∈[{range_str}] | {mean_std_str}{nan_str}{inf_str}{neg_inf_str}"
@@ -165,8 +163,12 @@ class AestheticTensor:
         return AestheticTensor((t - mi) / (ma - mi))
 
     @property
-    def observe(self):
+    def live(self):
         return AestheticObserver(self)
+
+    def hook(self, *args):
+        broadcasters, handler = args[:-1], args[-1]
+        return hook(lambda *vals: handler(self, *vals), *broadcasters)
 
     @property
     def raw(self):
