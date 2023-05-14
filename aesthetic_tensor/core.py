@@ -1,12 +1,15 @@
 import functools
+from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
+from torch import Tensor
 import torch.nn.functional as F
 import torchvision
 from PIL import Image
+from pprint import pprint, pformat
 
 
 def make_red(v):
@@ -17,12 +20,12 @@ def make_bold(v):
     return f"\x1B[1m{v}\x1b[0m"
 
 
-def patch_callable(callable):
+def patch_callable(callable, condition, type_wrapper):
     @functools.wraps(callable)
     def new_callable(*args, **kwargs):
         result = callable(*args, **kwargs)
-        if type(result) is torch.Tensor:
-            return AestheticTensor(result)
+        if condition(result):
+            return type_wrapper(result)
         return result
 
     return new_callable
@@ -30,7 +33,7 @@ def patch_callable(callable):
 
 class AestheticTensor:
     def __init__(self, target):
-        self.target = target
+        self.target: torch.Tensor = target
         functools.update_wrapper(self, torch.Tensor)
 
     def __getitem__(self, key):
@@ -39,31 +42,61 @@ class AestheticTensor:
     def __getattr__(self, key):
         obj = getattr(self.target, key)
         if callable(obj):
-            return patch_callable(obj)
+            return patch_callable(
+                obj,
+                condition=lambda res: type(res) is torch.Tensor,
+                type_wrapper=AestheticTensor,
+            )
         elif type(obj) is torch.Tensor:
             return AestheticTensor(obj)
         return obj
 
-    def __call__(self, semantic_dims):
-        pass
-
     def dim_shift(self, size):
         shape = self.target.shape
-        ndim = len(shape) - 1  # no batch
+        ndim = len(shape)
         shift = [((d - size) % ndim) + 1 for d in range(ndim)]
-        return AestheticTensor(self.target.permute(0, *shift))
+        return AestheticTensor(self.target.permute(*shift))
 
-    def cmap(self, cm="viridis"):
+    @property
+    def hwc(self):
+        return AestheticTensor(self.target.permute(1, 2, 0))
+
+    @property
+    def chw(self):
+        return AestheticTensor(self.target.permute(2, 0, 1))
+
+    def cmap(self, cm="viridis", dim=-1):
         cmap = mpl.cm.get_cmap(cm)
         t = torch.tensor(cmap(self.normal.np))
-        return AestheticTensor(t).dim_shift(1).uint8
+        dims = list(range(t.ndim))
+        dims[dim], dims[-1] = dims[-1], dims[dim]
+        t = t.permute(dims)
+        return AestheticTensor(t).uint8
+
+    @property
+    def N(self):
+        return AestheticContainer(self)
 
     @property
     def hist(self):
         flat = self.np.reshape(-1)
+        fig, ax = plt.subplots(1, 1, dpi=100, figsize=(3.5, 3))
+        sns.histplot(flat, bins=30, ax=ax)
+        plt.close()
+        return fig
 
-        fig, ax = plt.subplots(1, 1, dpi=128, figsize=(4, 2))
-        sns.histplot(flat, ax=ax)
+    @property
+    def plot(self):
+        flat = self.np.reshape(-1)
+        fig, ax = plt.subplots(1, 1, dpi=100, figsize=(3.5, 3))
+        sns.lineplot(flat, ax=ax)
+        plt.close()
+        return fig
+
+    @property
+    def imshow(self):
+        fig, ax = plt.subplots(1, 1, dpi=100, figsize=(3.5, 3))
+        ax.imshow(self.np)
         plt.close()
         return fig
 
@@ -121,10 +154,18 @@ class AestheticTensor:
 
     @property
     def pil(self):
-        return [Image.fromarray(im) for im in self.dim_shift(-1).np]
+        return Image.fromarray(self.np)
 
     def zoom(self, scale=1):
-        return AestheticTensor(F.interpolate(self.target, scale_factor=scale))
+        t = self.target
+        ndim = t.ndim
+        if ndim == 2:
+            t = t.unsqueeze(0).unsqueeze(0)
+        else:  # assumes t.ndim == 3
+            t = t.unsqueeze(0)
+        t = F.interpolate(t, scale_factor=scale)
+
+        return AestheticTensor(t[0, 0] if ndim == 2 else t[0])
 
     @property
     def normal(self) -> "AestheticTensor":
@@ -141,6 +182,47 @@ class AestheticTensor:
         return self.target
 
 
-class AestheticCollection(AestheticTensor):
-    def __init__(self, ae_tensor, semantic_dims):
-        self.
+class AestheticContainer:
+    def __init__(self, aesthetic_tensor):
+        self.container = [t for t in aesthetic_tensor]
+
+    def nb(self, ncol=-1):
+        import ipywidgets as ipw
+        from IPython.display import display
+
+        vertical = [[]]
+        for i, t in enumerate(self.container):
+            o = ipw.Output()
+            if type(t) is Image.Image:
+                with o:
+                    display(t)
+            else:
+                o.append_display_data(t)
+
+            vertical[-1].append(o)
+            if i % ncol == ncol - 1:
+                vertical[-1] = ipw.HBox(vertical[-1])
+                vertical.append([])
+
+        if len(vertical[-1]) > 0:
+            vertical[-1] = ipw.HBox(vertical[-1])
+        else:
+            vertical.pop()
+
+        return ipw.VBox(vertical)
+
+    def __repr__(self):
+        return "AestheticContainer(" + repr(self.container) + ")"
+
+    def __getitem__(self, key):
+        return AestheticContainer([t.__getitem__(key) for t in self.container])
+
+    def __getattr__(self, key):
+        return AestheticContainer([getattr(t, key) for t in self.container])
+
+    def __call__(self, *args, **kwds):
+        return AestheticContainer([t(*args, **kwds) for t in self.container])
+
+    @property
+    def raw(self):
+        return self.container
