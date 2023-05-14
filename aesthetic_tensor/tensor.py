@@ -1,15 +1,15 @@
 import functools
-from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
-from torch import Tensor
 import torch.nn.functional as F
 import torchvision
 from PIL import Image
-from pprint import pprint, pformat
+from aesthetic_tensor.container import AestheticContainer
+from aesthetic_tensor.observer import AestheticObserver
+from aesthetic_tensor.utils import patch_callable
 
 
 def make_red(v):
@@ -18,17 +18,6 @@ def make_red(v):
 
 def make_bold(v):
     return f"\x1B[1m{v}\x1b[0m"
-
-
-def patch_callable(callable, condition, type_wrapper):
-    @functools.wraps(callable)
-    def new_callable(*args, **kwargs):
-        result = callable(*args, **kwargs)
-        if condition(result):
-            return type_wrapper(result)
-        return result
-
-    return new_callable
 
 
 class AestheticTensor:
@@ -47,8 +36,6 @@ class AestheticTensor:
                 condition=lambda res: type(res) is torch.Tensor,
                 type_wrapper=AestheticTensor,
             )
-        elif type(obj) is torch.Tensor:
-            return AestheticTensor(obj)
         return obj
 
     def dim_shift(self, size):
@@ -178,51 +165,9 @@ class AestheticTensor:
         return AestheticTensor((t - mi) / (ma - mi))
 
     @property
-    def raw(self):
-        return self.target
-
-
-class AestheticContainer:
-    def __init__(self, aesthetic_tensor):
-        self.container = [t for t in aesthetic_tensor]
-
-    def nb(self, ncol=-1):
-        import ipywidgets as ipw
-        from IPython.display import display
-
-        vertical = [[]]
-        for i, t in enumerate(self.container):
-            o = ipw.Output()
-            if type(t) is Image.Image:
-                with o:
-                    display(t)
-            else:
-                o.append_display_data(t)
-
-            vertical[-1].append(o)
-            if i % ncol == ncol - 1:
-                vertical[-1] = ipw.HBox(vertical[-1])
-                vertical.append([])
-
-        if len(vertical[-1]) > 0:
-            vertical[-1] = ipw.HBox(vertical[-1])
-        else:
-            vertical.pop()
-
-        return ipw.VBox(vertical)
-
-    def __repr__(self):
-        return "AestheticContainer(" + repr(self.container) + ")"
-
-    def __getitem__(self, key):
-        return AestheticContainer([t.__getitem__(key) for t in self.container])
-
-    def __getattr__(self, key):
-        return AestheticContainer([getattr(t, key) for t in self.container])
-
-    def __call__(self, *args, **kwds):
-        return AestheticContainer([t(*args, **kwds) for t in self.container])
+    def observe(self):
+        return AestheticObserver(self)
 
     @property
     def raw(self):
-        return self.container
+        return self.target

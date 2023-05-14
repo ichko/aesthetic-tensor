@@ -1,5 +1,5 @@
 import torch
-from aesthetic_tensor.core import AestheticTensor
+from aesthetic_tensor.tensor import AestheticTensor
 
 
 def aesthetify():
