@@ -1,4 +1,5 @@
 import functools
+from io import BytesIO
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -6,10 +7,12 @@ import seaborn as sns
 import torch
 import torch.nn.functional as F
 import torchvision
+from IPython.display import Image as ipy_Image
 from PIL import Image
+
+from aesthetic_tensor.broadcaster import hook
 from aesthetic_tensor.container import AestheticContainer
 from aesthetic_tensor.observer import AestheticObserver
-from aesthetic_tensor.broadcaster import hook
 from aesthetic_tensor.utils import patch_callable
 
 
@@ -55,7 +58,7 @@ class AestheticTensor:
 
     def cmap(self, cm="viridis", dim=-1):
         cmap = mpl.cm.get_cmap(cm)
-        t = torch.tensor(cmap(self.normal.np))
+        t = torch.tensor(cmap(self.np))
         dims = list(range(t.ndim))
         dims[dim], dims[-1] = dims[-1], dims[dim]
         t = t.permute(dims)
@@ -163,12 +166,27 @@ class AestheticTensor:
         return AestheticTensor((t - mi) / (ma - mi))
 
     @property
+    def gif(self):
+        fp = BytesIO()
+        pils = self.N.pil.raw
+        pils[0].save(
+            fp,
+            format="gif",
+            save_all=True,
+            append_images=pils[1:],
+            duration=1,
+            loop=0,
+        )
+        fp.seek(0)
+        return ipy_Image(data=fp.read(), format="png")
+
+    @property
     def live(self):
         return AestheticObserver(self)
 
     def hook(self, *args):
         broadcasters, handler = args[:-1], args[-1]
-        return hook(lambda *vals: handler(self, *vals), *broadcasters)
+        return hook(*broadcasters, lambda *vals: handler(self, *vals))
 
     @property
     def raw(self):
