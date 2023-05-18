@@ -1,4 +1,5 @@
 from PIL import Image
+import torch
 
 
 class AestheticContainer:
@@ -30,8 +31,18 @@ class AestheticContainer:
 
         return ipw.VBox(vertical)
 
+    @property
+    def N(self):
+        return torch.stack(self.map(lambda t: t.raw).raw).ae
+
+    def map(self, mapper):
+        return AestheticContainer([mapper(t) for t in self.container])
+
+    def loc(self, idx):
+        return self.container[idx]
+
     def __repr__(self):
-        return "AestheticContainer(" + repr(self.container) + ")"
+        return f"[{len(self.container)}](~" + repr(self.container[0]) + ")"
 
     def __getitem__(self, key):
         return AestheticContainer([t.__getitem__(key) for t in self.container])

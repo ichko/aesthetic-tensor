@@ -7,20 +7,22 @@ from aesthetic_tensor.observer import AestheticObserver
 class AestheticBroadcaster:
     def __init__(self, value=None):
         self.value = value
-        self.on_change_handler = lambda _: None
+        self.on_change_handlers = []
 
     def on_change(self, on_change_handler):
-        self.on_change_handler = on_change_handler
+        self.on_change_handlers.append(on_change_handler)
 
     def update(self, value):
         self.value = value
         self.notify()
 
     def notify(self):
-        self.on_change_handler(self.value)
+        for handler in self.on_change_handlers:
+            handler(self.value)
 
 
-def hook(observer_handler, *broadcasters):
+def hook(*args):
+    broadcasters, observer_handler = args[:-1], args[-1]
     values = [b.value for b in broadcasters]
     observer = AestheticObserver(lambda: observer_handler(*values))()
 
