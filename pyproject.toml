@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{ include = "aesthetic_tensor" }]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
 torch = "^2.0.0"
 torchvision = "^0.15.1"
 matplotlib = "^3.7.1"
