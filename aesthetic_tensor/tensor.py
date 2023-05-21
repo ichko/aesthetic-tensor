@@ -144,14 +144,36 @@ class AestheticTensor:
     def pil(self):
         return Image.fromarray(self.np)
 
+    @property
+    def img(self):
+        if self.target.ndim == 2:
+            return self.cmap().pil
+        elif self.target.ndim == 3:
+            target = AestheticTensor(self.target)
+            if target.dtype != torch.uint8:
+                target = self.uint8
+            if target.size(0) == 3:  # is in chw mode
+                return target.hwc.pil
+            return target.pil
+        raise Exception("Invalid shape for image")
+
     def zoom(self, scale=1):
+        assert self.ndim in [2, 3], "n-dims should be 2 or 3"
         t = self.target
         ndim = t.ndim
         if ndim == 2:
             t = t.unsqueeze(0).unsqueeze(0)
         else:  # assumes t.ndim == 3
             t = t.unsqueeze(0)
+
+        hwc_test = t.shape[-1] == 3 and t.shape[1] > 3
+        if hwc_test:
+            t = t.permute(0, 3, 1, 2)
+
         t = F.interpolate(t, scale_factor=scale)
+
+        if hwc_test:
+            t = t.permute(0, 2, 3, 1)
 
         return AestheticTensor(t[0, 0] if ndim == 2 else t[0])
 
