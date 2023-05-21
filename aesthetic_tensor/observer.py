@@ -26,8 +26,8 @@ class AestheticObserver:
         Jupyter checks for this missing method to check if __getattr__
         has been defined. If so, a normal __repr__ is called.
         """
-        # if key == "_ipython_canary_method_should_not_exist_":
-        #     raise AttributeError(f"object has no attribute '{key}'")
+        if key == "_ipython_canary_method_should_not_exist_":
+            raise AttributeError(f"object has no attribute '{key}'")
 
         return self.new_command("getattr", lambda v: getattr(v, key))
 
@@ -38,10 +38,9 @@ class AestheticObserver:
         self.displayed = True
         self.render()
         display(self.out)
-        return self
 
-    # def _ipython_display_(self):
-    #     self.display()
+    def _ipython_display_(self):
+        self.display()
 
     def render(self):
         r = self.raw
