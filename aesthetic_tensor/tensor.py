@@ -14,6 +14,8 @@ from aesthetic_tensor.broadcaster import hook
 from aesthetic_tensor.container import AestheticContainer
 from aesthetic_tensor.observer import AestheticObserver
 from aesthetic_tensor.utils import patch_callable
+from argparse import Namespace
+import base64
 
 
 def make_red(v):
@@ -24,7 +26,67 @@ def make_bold(v):
     return f"\x1B[1m{v}\x1b[0m"
 
 
-class AestheticTensor:
+def fig_to_pil(fig):
+    buf = BytesIO()
+    fig.savefig(buf, bbox_inches="tight")
+    buf.seek(0)
+    pil = Image.open(buf)
+    # fig.canvas.draw()
+    # pil = Image.frombytes(
+    #     "RGB", fig.canvas.get_width_height(), fig.canvas.tostring_rgb()
+    # )
+    return pil
+
+
+class ImageWrapper:
+    @staticmethod
+    def from_fig(fig):
+        return ImageWrapper(fig_to_pil(fig))
+
+    def __init__(self, pil):
+        self.pil = pil
+
+    def _repr_html_(self):
+        buffered = BytesIO()
+        self.pil.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf8")
+        return f"""<img src="data:image/png;base64, {img_str}" alt="img"/>"""
+
+
+class MatplotlibMixin:
+    def hist(self, **kwargs):
+        flat = self.np.reshape(-1)
+        fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
+        plt.tight_layout()
+        sns.histplot(flat, bins=30, ax=ax)
+        plt.close()
+        return ImageWrapper.from_fig(fig)
+
+    def plot(self, **kwargs):
+        flat = self.np.reshape(-1)
+        fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
+        sns.lineplot(flat, ax=ax)
+        plt.tight_layout()
+        plt.close()
+        return ImageWrapper.from_fig(fig)
+
+    def imshow(self, cmap="viridis", **kwargs):
+        fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
+        ax.imshow(self.np, cmap=cmap)
+        plt.tight_layout()
+        plt.close()
+        return ImageWrapper.from_fig(fig)
+
+    def cmap(self, cm="viridis", dim=-1):
+        cmap = mpl.cm.get_cmap(cm)
+        t = torch.tensor(cmap(self.np))
+        dims = list(range(t.ndim))
+        dims[dim], dims[-1] = dims[-1], dims[dim]
+        t = t.permute(dims)
+        return AestheticTensor(t).uint8
+
+
+class AestheticTensor(MatplotlibMixin):
     def __init__(self, target):
         self.target: torch.Tensor = target
         functools.update_wrapper(self, torch.Tensor)
@@ -56,72 +118,55 @@ class AestheticTensor:
     def chw(self):
         return AestheticTensor(self.target.permute(2, 0, 1))
 
-    def cmap(self, cm="viridis", dim=-1):
-        cmap = mpl.cm.get_cmap(cm)
-        t = torch.tensor(cmap(self.np))
-        dims = list(range(t.ndim))
-        dims[dim], dims[-1] = dims[-1], dims[dim]
-        t = t.permute(dims)
-        return AestheticTensor(t).uint8
-
     @property
-    def N(self):
-        return AestheticContainer(self)
-
-    def hist(self, **kwargs):
-        flat = self.np.reshape(-1)
-        fig, ax = plt.subplots(1, 1, **{"dpi": 100, "figsize": (3.5, 3), **kwargs})
-        sns.histplot(flat, bins=30, ax=ax)
-        plt.close()
-        return fig
-
-    def plot(self, **kwargs):
-        flat = self.np.reshape(-1)
-        fig, ax = plt.subplots(1, 1, **{"dpi": 100, "figsize": (3.5, 3), **kwargs})
-        sns.lineplot(flat, ax=ax)
-        plt.close()
-        return fig
-
-    def imshow(self, cmap="viridis", **kwargs):
-        fig, ax = plt.subplots(1, 1, **{"dpi": 100, "figsize": (3.5, 3), **kwargs})
-        ax.imshow(self.np, cmap=cmap)
-        plt.close()
-        return fig
-
-    def __repr__(self):
+    def info(self):
         target = self.target.to(torch.float64)
         nan_mask = torch.isnan(target)
         neg_inf_mask = torch.isneginf(target)
         inf_mask = torch.isinf(target) * ~neg_inf_mask
-        has_nan = torch.any(nan_mask)
-        has_inf = torch.any(inf_mask)
-        has_neg_inf = torch.any(neg_inf_mask)
         valid_mask = ~nan_mask & ~inf_mask & ~neg_inf_mask
 
         mi = target[valid_mask].min()
         ma = target[valid_mask].max()
-        shape_str = make_bold(", ".join(str(d) for d in target.shape))
         std = target[valid_mask].std()
         mean = target[valid_mask].mean()
+
+        return Namespace(
+            shape=tuple(target.shape),
+            range=(mi.item(), ma.item()),
+            mean=mean.item(),
+            std=std.item(),
+            num_nan=torch.sum(nan_mask).item(),
+            num_inf=torch.sum(inf_mask).item(),
+            num_neg_inf=torch.sum(neg_inf_mask).item(),
+        )
+
+    def __repr__(self):
+        info = self.info
+        mi, ma = info.range
+
+        shape_str = make_bold(", ".join(str(d) for d in info.shape))
         nan_str = (
-            (", " + make_bold(make_red(f"∃nan*{torch.sum(nan_mask)}")))
-            if has_nan
+            (", " + make_bold(make_red(f"∃nan*{info.num_nan}")))
+            if info.num_nan > 0
             else ""
         )
         inf_str = (
-            (", " + make_bold(make_red(f"∃∞*{torch.sum(inf_mask)}"))) if has_inf else ""
+            (", " + make_bold(make_red(f"∃∞*{info.num_inf}")))
+            if info.num_inf > 0
+            else ""
         )
         neg_inf_str = (
-            (", " + make_bold(make_red(f"∃-∞*{torch.sum(neg_inf_mask)}")))
-            if has_neg_inf
+            (", " + make_bold(make_red(f"∃-∞*{torch.sum(info.num_neg_inf)}")))
+            if info.num_neg_inf > 0
             else ""
         )
         range_str = make_bold(f"{mi:0.3f}, {ma:0.3f}")
         _, type_str = str(self.target.dtype).split(".")
         type_str = make_bold(type_str)
 
-        mu_str = make_bold(f"{mean:0.3f}")
-        std_str = make_bold(f"{std:0.3f}")
+        mu_str = make_bold(f"{info.mean:0.3f}")
+        std_str = make_bold(f"{info.std:0.3f}")
         mean_std_str = f"μ={mu_str}, σ={std_str}"
 
         return f"{type_str}<{shape_str}>∈[{range_str}] | {mean_std_str}{nan_str}{inf_str}{neg_inf_str}"
@@ -142,7 +187,38 @@ class AestheticTensor:
 
     @property
     def pil(self):
-        return Image.fromarray(self.np)
+        pil = Image.fromarray(self.np)
+        return ImageWrapper(pil)
+
+    @property
+    def gif(self):
+        aesthetic_self = self
+
+        class GIF:
+            def __init__(self) -> None:
+                self.fps_val = 30
+
+            def __call__(self, fps):
+                self.fps_val = fps
+                return self
+
+            def _repr_html_(self):
+                fp = BytesIO()
+                pils = [w.pil for w in aesthetic_self.N.img.raw]
+                pils[0].save(
+                    fp,
+                    format="gif",
+                    save_all=True,
+                    append_images=pils[1:],
+                    duration=1000 / self.fps_val,
+                    loop=0,
+                )
+                fp.seek(0)
+
+                b64 = base64.b64encode(fp.read()).decode("ascii")
+                return f"""<img src="data:image/gif;base64,{b64}" />"""
+
+        return GIF()
 
     @property
     def img(self):
@@ -188,19 +264,8 @@ class AestheticTensor:
         return AestheticTensor((t - mi) / (ma - mi))
 
     @property
-    def gif(self):
-        fp = BytesIO()
-        pils = self.N.pil.raw
-        pils[0].save(
-            fp,
-            format="gif",
-            save_all=True,
-            append_images=pils[1:],
-            duration=1,
-            loop=0,
-        )
-        fp.seek(0)
-        return ipy_Image(data=fp.read(), format="png")
+    def N(self):
+        return AestheticContainer(self)
 
     @property
     def live(self):
