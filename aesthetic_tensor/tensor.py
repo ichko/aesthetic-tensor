@@ -77,6 +77,20 @@ class MatplotlibMixin:
         plt.close()
         return ImageWrapper.from_fig(fig)
 
+    @property
+    def displot(self):
+        flat = self.np.reshape(-1)
+        info = self.info
+        # fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3)})
+        fig = sns.displot(flat, kde=True, height=2.5, aspect=2)
+        ax = fig.facet_axis(0, 0)
+        mi_y, ma_y = ax.get_ylim()
+        ax.text(info.mean, ma_y, "μ", rotation=0)
+        ax.axvline(info.mean, c="k", ls="-", lw=1)
+        plt.tight_layout()
+        plt.close()
+        return ImageWrapper.from_fig(fig)
+
     def cmap(self, cm="viridis", dim=-1):
         cmap = mpl.cm.get_cmap(cm)
         t = torch.tensor(cmap(self.np))
