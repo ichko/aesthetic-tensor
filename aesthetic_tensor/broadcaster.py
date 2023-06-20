@@ -1,6 +1,8 @@
+from functools import wraps
+
 import ipywidgets as ipw
 from IPython.display import display
-from functools import wraps
+
 from aesthetic_tensor.observer import AestheticObserver
 
 

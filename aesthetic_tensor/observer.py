@@ -1,5 +1,5 @@
-from IPython.display import display, clear_output
 import ipywidgets as ipw
+from IPython.display import clear_output, display
 
 
 class AestheticObserver:

@@ -1,6 +1,7 @@
 import torch
+
+from aesthetic_tensor.broadcaster import AestheticBroadcaster, hook, ipw
 from aesthetic_tensor.tensor import AestheticTensor
-from aesthetic_tensor.broadcaster import AestheticBroadcaster, ipw, hook
 
 V = AestheticBroadcaster
 

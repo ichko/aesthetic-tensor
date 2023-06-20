@@ -1,5 +1,5 @@
-from PIL import Image
 import torch
+from PIL import Image
 
 
 class AestheticContainer:

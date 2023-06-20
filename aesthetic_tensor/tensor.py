@@ -1,4 +1,6 @@
+import base64
 import functools
+from argparse import Namespace
 from io import BytesIO
 
 import matplotlib as mpl
@@ -14,8 +16,6 @@ from aesthetic_tensor.broadcaster import hook
 from aesthetic_tensor.container import AestheticContainer
 from aesthetic_tensor.observer import AestheticObserver
 from aesthetic_tensor.utils import patch_callable
-from argparse import Namespace
-import base64
 
 
 def make_red(v):
