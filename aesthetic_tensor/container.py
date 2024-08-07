@@ -1,35 +1,9 @@
-import torch
 from PIL import Image
 
 
 class AestheticContainer:
     def __init__(self, aesthetic_tensor):
         self.container = [t for t in aesthetic_tensor]
-
-    # def nb(self, ncol=-1):
-    #     import ipywidgets as ipw
-    #     from IPython.display import display
-
-    #     vertical = [[]]
-    #     for i, t in enumerate(self.container):
-    #         o = ipw.Output()
-    #         if type(t) is Image.Image:
-    #             with o:
-    #                 display(t)
-    #         else:
-    #             o.append_display_data(t)
-
-    #         vertical[-1].append(o)
-    #         if i % ncol == ncol - 1:
-    #             vertical[-1] = ipw.HBox(vertical[-1])
-    #             vertical.append([])
-
-    #     if len(vertical[-1]) > 0:
-    #         vertical[-1] = ipw.HBox(vertical[-1])
-    #     else:
-    #         vertical.pop()
-
-    #     return ipw.VBox(vertical)
 
     def _repr_html_(self):
         if not hasattr(self.container[0], "_repr_html_"):
