@@ -1,12 +1,13 @@
-import torch
-
+import numpy as np
 from aesthetic_tensor.broadcaster import AestheticBroadcaster, hook, ipw
 from aesthetic_tensor.tensor import AestheticTensor
 
 V = AestheticBroadcaster
 
+def ae(array: np.ndarray):
+    return AestheticTensor(array)
 
-def aesthetify():
+def monkey_patch_torch():
     prop: AestheticTensor = property(
         lambda self: AestheticTensor(self),
     )
