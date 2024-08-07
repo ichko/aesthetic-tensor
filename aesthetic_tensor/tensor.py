@@ -5,11 +5,8 @@ from io import BytesIO
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
-import torch
-import torch.nn.functional as F
-import torchvision
-from IPython.display import Image as ipy_Image
 from PIL import Image
 
 from aesthetic_tensor.broadcaster import hook
@@ -92,18 +89,18 @@ class MatplotlibMixin:
         return ImageWrapper.from_fig(fig)
 
     def cmap(self, cm="viridis", dim=-1):
-        cmap = mpl.cm.get_cmap(cm)
-        t = torch.tensor(cmap(self.np))
+        cmap = getattr(mpl.cm, cm)
+        t = cmap(self.target)
         dims = list(range(t.ndim))
         dims[dim], dims[-1] = dims[-1], dims[dim]
-        t = t.permute(dims)
+        t = t.transpose(dims)
         return AestheticTensor(t).uint8
 
 
 class AestheticTensor(MatplotlibMixin):
     def __init__(self, target):
-        self.target: torch.Tensor = target
-        functools.update_wrapper(self, torch.Tensor)
+        self.target: np.ndarray = target
+        functools.update_wrapper(self, np.ndarray)
 
     def __getitem__(self, key):
         return AestheticTensor(self.target.__getitem__(key))
@@ -113,7 +110,7 @@ class AestheticTensor(MatplotlibMixin):
         if callable(obj):
             return patch_callable(
                 obj,
-                condition=lambda res: type(res) is torch.Tensor,
+                condition=lambda res: type(res) is np.ndarray,
                 type_wrapper=AestheticTensor,
             )
         return obj
@@ -122,22 +119,22 @@ class AestheticTensor(MatplotlibMixin):
         shape = self.target.shape
         ndim = len(shape)
         shift = [((d - size) % ndim) + 1 for d in range(ndim)]
-        return AestheticTensor(self.target.permute(*shift))
+        return AestheticTensor(self.target.transpose(*shift))
 
     @property
     def hwc(self):
-        return AestheticTensor(self.target.permute(1, 2, 0))
+        return AestheticTensor(self.target.transpose(1, 2, 0))
 
     @property
     def chw(self):
-        return AestheticTensor(self.target.permute(2, 0, 1))
+        return AestheticTensor(self.target.transpose(2, 0, 1))
 
     @property
     def info(self):
-        target = self.target.to(torch.float64)
-        nan_mask = torch.isnan(target)
-        neg_inf_mask = torch.isneginf(target)
-        inf_mask = torch.isinf(target) * ~neg_inf_mask
+        target = self.target.astype(np.float64)
+        nan_mask = np.isnan(target)
+        neg_inf_mask = np.isneginf(target)
+        inf_mask = np.isinf(target) * ~neg_inf_mask
         valid_mask = ~nan_mask & ~inf_mask & ~neg_inf_mask
 
         mi = target[valid_mask].min()
@@ -150,9 +147,9 @@ class AestheticTensor(MatplotlibMixin):
             range=(mi.item(), ma.item()),
             mean=mean.item(),
             std=std.item(),
-            num_nan=torch.sum(nan_mask).item(),
-            num_inf=torch.sum(inf_mask).item(),
-            num_neg_inf=torch.sum(neg_inf_mask).item(),
+            num_nan=np.sum(nan_mask).item(),
+            num_inf=np.sum(inf_mask).item(),
+            num_neg_inf=np.sum(neg_inf_mask).item(),
         )
 
     def __repr__(self):
@@ -171,12 +168,12 @@ class AestheticTensor(MatplotlibMixin):
             else ""
         )
         neg_inf_str = (
-            (", " + make_bold(make_red(f"∃-∞*{torch.sum(info.num_neg_inf)}")))
+            (", " + make_bold(make_red(f"∃-∞*{np.sum(info.num_neg_inf)}")))
             if info.num_neg_inf > 0
             else ""
         )
         range_str = make_bold(f"{mi:0.3f}, {ma:0.3f}")
-        _, type_str = str(self.target.dtype).split(".")
+        type_str = str(self.target.dtype)
         type_str = make_bold(type_str)
 
         mu_str = make_bold(f"{info.mean:0.3f}")
@@ -185,23 +182,32 @@ class AestheticTensor(MatplotlibMixin):
 
         return f"{type_str}<{shape_str}>∈[{range_str}] | {mean_std_str}{nan_str}{inf_str}{neg_inf_str}"
 
-    @property
-    def np(self):
-        return self.target.detach().cpu().numpy()
+    def grid(self, ncols=8, pad=1):
+        t = self.target
+        t = np.pad(
+            t,
+            [(0, 0) for _ in range(t.ndim - 2)] + [[pad, pad], [pad, pad]],
+        )
+        bs = t.shape[0]
+        rows = np.ceil(bs / ncols).astype(int)
+        pad_rem = rows * ncols - bs
+        t = np.pad(t, [(0, pad_rem)] + [(0, 0)] * (t.ndim - 1))
+        t = t.reshape([rows, ncols, *t.shape[1:]])
+        t = np.concatenate(np.concatenate(t, axis=2), axis=2)
+        t = np.pad(
+            t,
+            [(0, 0) for _ in range(t.ndim - 2)] + [[pad, pad], [pad, pad]],
+        )
 
-    def grid(self, nrow=8, pad=2):
-        out = torchvision.utils.make_grid(
-            self.target, nrow=nrow, padding=pad
-        ).unsqueeze(0)
-        return AestheticTensor(out)
+        return AestheticTensor(t)
 
     @property
     def uint8(self):
-        return AestheticTensor((self.target * 255).to(torch.uint8))
+        return AestheticTensor((self.target * 255).astype(np.uint8))
 
     @property
     def pil(self):
-        pil = Image.fromarray(self.np)
+        pil = Image.fromarray(self.target)
         return ImageWrapper(pil)
 
     @property
@@ -218,13 +224,13 @@ class AestheticTensor(MatplotlibMixin):
 
             def _repr_html_(self):
                 fp = BytesIO()
-                pils = [w.pil for w in aesthetic_self.N.img.raw]
+                pils = [AestheticTensor(t).img.pil for t in aesthetic_self.raw]
                 pils[0].save(
                     fp,
                     format="gif",
                     save_all=True,
                     append_images=pils[1:],
-                    duration=1000 / self.fps_val,
+                    duration=40,
                     loop=0,
                 )
                 fp.seek(0)
@@ -240,32 +246,18 @@ class AestheticTensor(MatplotlibMixin):
             return self.cmap().pil
         elif self.target.ndim == 3:
             target = AestheticTensor(self.target)
-            if target.dtype != torch.uint8:
+            if target.raw.dtype != np.uint8:
                 target = self.uint8
-            if target.size(0) == 3:  # is in chw mode
+            if target.raw.shape[0] == 3:  # is in chw
                 return target.hwc.pil
             return target.pil
+        print("AAA")
+        print(self.target.shape)
         raise Exception("Invalid shape for image")
 
-    def zoom(self, scale=1):
-        assert self.ndim in [2, 3], "n-dims should be 2 or 3"
-        t = self.target
-        ndim = t.ndim
-        if ndim == 2:
-            t = t.unsqueeze(0).unsqueeze(0)
-        else:  # assumes t.ndim == 3
-            t = t.unsqueeze(0)
-
-        hwc_test = t.shape[-1] == 3 and t.shape[1] > 3
-        if hwc_test:
-            t = t.permute(0, 3, 1, 2)
-
-        t = F.interpolate(t, scale_factor=scale)
-
-        if hwc_test:
-            t = t.permute(0, 2, 3, 1)
-
-        return AestheticTensor(t[0, 0] if ndim == 2 else t[0])
+    def zoom(self, n=1):
+        res = self.target.repeat(n, axis=-1).repeat(n, axis=-2)
+        return AestheticTensor(res)
 
     @property
     def normal(self) -> "AestheticTensor":
