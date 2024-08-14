@@ -20,7 +20,7 @@ def make_red(v):
 
 
 def make_bold(v):
-    return f"\x1B[1m{v}\x1b[0m"
+    return f"\033[1m{v}\033[0m"
 
 
 def fig_to_pil(fig):
@@ -52,7 +52,7 @@ class ImageWrapper:
 
 class MatplotlibMixin:
     def hist(self, **kwargs):
-        flat = self.np.reshape(-1)
+        flat = self.raw.reshape(-1)
         fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
         plt.tight_layout()
         sns.histplot(flat, bins=30, ax=ax)
@@ -193,7 +193,7 @@ class AestheticTensor(MatplotlibMixin):
         pad_rem = rows * ncols - bs
         t = np.pad(t, [(0, pad_rem)] + [(0, 0)] * (t.ndim - 1))
         t = t.reshape([rows, ncols, *t.shape[1:]])
-        t = np.concatenate(np.concatenate(t, axis=2), axis=2)
+        t = np.concatenate(np.concatenate(t, axis=-2), axis=-1)
         t = np.pad(
             t,
             [(0, 0) for _ in range(t.ndim - 2)] + [[pad, pad], [pad, pad]],
@@ -230,7 +230,7 @@ class AestheticTensor(MatplotlibMixin):
                     format="gif",
                     save_all=True,
                     append_images=pils[1:],
-                    duration=40,
+                    duration=1000 // self.fps_val,
                     loop=0,
                 )
                 fp.seek(0)
@@ -251,8 +251,6 @@ class AestheticTensor(MatplotlibMixin):
             if target.raw.shape[0] == 3:  # is in chw
                 return target.hwc.pil
             return target.pil
-        print("AAA")
-        print(self.target.shape)
         raise Exception("Invalid shape for image")
 
     def zoom(self, n=1):
