@@ -4,12 +4,16 @@ from aesthetic_tensor.tensor import AestheticTensor
 
 V = AestheticBroadcaster
 
+
 def ae(array: np.ndarray):
     return AestheticTensor(array)
 
+
 def monkey_patch_torch():
+    import torch
+
     prop: AestheticTensor = property(
-        lambda self: AestheticTensor(self),
+        lambda self: AestheticTensor(self.detach().cpu().numpy()),
     )
-    torch.Tensor.ae: AestheticTensor = prop
-    torch.Tensor.æ: AestheticTensor = prop
+    torch.Tensor.ae = prop
+    torch.Tensor.æ = prop
