@@ -11,6 +11,7 @@ from PIL import Image
 
 from aesthetic_tensor.broadcaster import hook
 from aesthetic_tensor.container import AestheticContainer
+from aesthetic_tensor.gif import GIF
 from aesthetic_tensor.observer import AestheticObserver
 from aesthetic_tensor.utils import patch_callable
 
@@ -51,32 +52,42 @@ class ImageWrapper:
 
 
 class MatplotlibMixin:
-    def hist(self, **kwargs):
+    def hist(self, bins=30, **kwargs):
         flat = self.raw.reshape(-1)
         fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
         plt.tight_layout()
-        sns.histplot(flat, bins=30, ax=ax)
+        sns.histplot(flat, bins=bins, ax=ax)
+        plt.close()
+        return ImageWrapper.from_fig(fig)
+
+    def bar(self, **kwargs):
+        flat = self.raw.reshape(-1)
+        fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
+        sns.barplot(flat, ax=ax)
+        ax.set_ylim(-2, 2)
+        plt.tight_layout()
         plt.close()
         return ImageWrapper.from_fig(fig)
 
     def plot(self, **kwargs):
-        flat = self.np.reshape(-1)
+        flat = self.raw.reshape(-1)
         fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
         sns.lineplot(flat, ax=ax)
+        ax.set_ylim(-2, 2)
         plt.tight_layout()
         plt.close()
         return ImageWrapper.from_fig(fig)
 
     def imshow(self, cmap="viridis", **kwargs):
         fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
-        ax.imshow(self.np, cmap=cmap)
+        ax.imshow(self.raw, cmap=cmap)
         plt.tight_layout()
         plt.close()
         return ImageWrapper.from_fig(fig)
 
     @property
     def displot(self):
-        flat = self.np.reshape(-1)
+        flat = self.raw.reshape(-1)
         info = self.info
         # fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3)})
         fig = sns.displot(flat, kde=True, height=2.5, aspect=2)
@@ -212,33 +223,8 @@ class AestheticTensor(MatplotlibMixin):
 
     @property
     def gif(self):
-        aesthetic_self = self
-
-        class GIF:
-            def __init__(self) -> None:
-                self.fps_val = 30
-
-            def __call__(self, fps):
-                self.fps_val = fps
-                return self
-
-            def _repr_html_(self):
-                fp = BytesIO()
-                pils = [AestheticTensor(t).img.pil for t in aesthetic_self.raw]
-                pils[0].save(
-                    fp,
-                    format="gif",
-                    save_all=True,
-                    append_images=pils[1:],
-                    duration=1000 // self.fps_val,
-                    loop=0,
-                )
-                fp.seek(0)
-
-                b64 = base64.b64encode(fp.read()).decode("ascii")
-                return f"""<img src="data:image/gif;base64,{b64}" />"""
-
-        return GIF()
+        pils = [AestheticTensor(t).img.pil for t in self.raw]
+        return GIF(pils)
 
     @property
     def img(self):
