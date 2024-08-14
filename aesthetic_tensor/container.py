@@ -1,4 +1,6 @@
+from ansi2html import Ansi2HTMLConverter
 from PIL import Image
+import numpy as np
 
 
 class AestheticContainer:
@@ -7,7 +9,8 @@ class AestheticContainer:
 
     def _repr_html_(self):
         if not hasattr(self.container[0], "_repr_html_"):
-            return "<pre>" + repr(self) + "</pre>"
+            conv = Ansi2HTMLConverter()
+            return conv.convert(repr(self))
 
         content = ""
         for item in self.container:
@@ -22,7 +25,7 @@ class AestheticContainer:
 
     @property
     def N(self):
-        return torch.stack(self.map(lambda t: t.raw).raw).ae
+        return np.stack(self.map(lambda t: t.raw).raw).ae
 
     def map(self, mapper):
         return AestheticContainer([mapper(t) for t in self.container])

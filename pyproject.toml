@@ -8,11 +8,13 @@ packages = [{ include = "aesthetic_tensor" }]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+ansi2html = "^1.9.2"
 
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
 jupyter = "^1.0.0"
+torch = "^2.4.0"
 
 [build-system]
 requires = ["poetry-core"]
