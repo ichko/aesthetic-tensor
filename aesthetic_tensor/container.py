@@ -2,6 +2,8 @@ from ansi2html import Ansi2HTMLConverter
 from PIL import Image
 import numpy as np
 
+from aesthetic_tensor.gif import GIF
+
 
 class AestheticContainer:
     def __init__(self, aesthetic_tensor):
@@ -24,8 +26,10 @@ class AestheticContainer:
         """
 
     @property
-    def N(self):
-        return np.stack(self.map(lambda t: t.raw).raw).ae
+    def UN(self):
+        from aesthetic_tensor.tensor import AestheticTensor
+
+        return AestheticTensor(np.stack(self.map(lambda t: t.raw).raw))
 
     def map(self, mapper):
         return AestheticContainer([mapper(t) for t in self.container])
@@ -44,6 +48,16 @@ class AestheticContainer:
 
     def __call__(self, *args, **kwds):
         return AestheticContainer([t(*args, **kwds) for t in self.container])
+
+    @property
+    def gif(self):
+        from aesthetic_tensor.tensor import AestheticTensor
+
+        if not hasattr(self.container[0], "gif"):
+            pils = [e.pil for e in self.container]
+            return GIF(pils)
+
+        return AestheticContainer([getattr(t, "gif") for t in self.container])
 
     @property
     def raw(self):
