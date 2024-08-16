@@ -99,7 +99,7 @@ class MatplotlibMixin:
 
     def cmap(self, cm="viridis", dim=-1):
         if dim < 0:
-            dim = self.target.ndim - dim - 1
+            dim = self.target.ndim + dim + 1
         cmap = getattr(mpl.cm, cm)
         t = cmap(self.target)
         dims = list(range(dim)) + [-1] + list(range(dim, self.target.ndim))
