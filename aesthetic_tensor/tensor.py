@@ -64,7 +64,6 @@ class MatplotlibMixin:
         flat = self.raw.reshape(-1)
         fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
         sns.barplot(flat, ax=ax)
-        ax.set_ylim(-2, 2)
         plt.tight_layout()
         plt.close()
         return ImageWrapper.from_fig(fig)
@@ -73,7 +72,6 @@ class MatplotlibMixin:
         flat = self.raw.reshape(-1)
         fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3), **kwargs})
         sns.lineplot(flat, ax=ax)
-        ax.set_ylim(-2, 2)
         plt.tight_layout()
         plt.close()
         return ImageWrapper.from_fig(fig)
@@ -100,10 +98,11 @@ class MatplotlibMixin:
         return ImageWrapper.from_fig(fig)
 
     def cmap(self, cm="viridis", dim=-1):
+        if dim < 0:
+            dim = self.target.ndim - dim - 1
         cmap = getattr(mpl.cm, cm)
         t = cmap(self.target)
-        dims = list(range(t.ndim))
-        dims[dim], dims[-1] = dims[-1], dims[dim]
+        dims = list(range(dim)) + [-1] + list(range(dim, self.target.ndim))
         t = t.transpose(dims)
         return AestheticTensor(t).uint8
 
