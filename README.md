@@ -48,7 +48,7 @@ T.ae
 
 - much better
 
-**you can also**
+## Documentation
 
 - **`T.ae.imshow()`**
 
@@ -90,9 +90,7 @@ T.ae
 
     ![gif-1](./assets/gif-1.gif) ![gif-2](./assets/gif-2.gif)
 
-- Check out the **[docs](#TODO)** for more ways for visualizing.
-
-## But my tensors are frequently batched
+### But my tensors are frequently batched
 
 Calling the `.N` property on an `AestheticTensor` will give you an `AestheticCollection`,
 pulling the leftmost dimension as a batch dimension.
@@ -115,6 +113,8 @@ torch.rand(3, 2, 30).ae.N.imshow(figsize=(6, 1))
 ```
 
 ![Random batched](assets/random-batched.png)
+
+- Use [this](https://github.com/ichko/aesthetic-tensor/blob/main/notebooks/aesthetic_notebook.ipynb) notebook as a library of examples.
 
 ## Resources
 
