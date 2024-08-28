@@ -14,6 +14,8 @@ A simple fluent API for tensor visualization and debugging.
 pip install git+https://github.com/ichko/aesthetic-tensor
 ```
 
+## Usage
+
 Instead of trying to decipher the default `__repr__` of a _tensor_
 
 ```py
