@@ -1,6 +1,18 @@
-# 👨‍🎨 Aesthetic-Tensor
+# 🎨 Aesthetic-Tensor
 
 A simple fluent API for tensor visualization and debugging.
+
+## Presented at EuroSciPy 2024 as a Poster
+
+- [Proposal](https://pretalx.com/euroscipy-2024/talk/review/7REJ3YRHZT9RU7VTRWKTFWSCUDGRRNLS)
+- Poster [Google Slides](https://docs.google.com/presentation/d/1CURpeU6FIOHw9ekpVdpDMeSV-yTpRGNdkuXrJNL0Nic/edit?usp=sharing)/[PDF](https://drive.google.com/file/d/1g74RxkLHuYZlwNKbuqnN3EEENulzIOqC/view?usp=drive_link)
+- [Poster Spotlight](https://docs.google.com/presentation/d/1gixmgr5v-485ONnLerXfFpuW4MBKJbOHVuppka1NExY/edit#slide=id.g2ef5ea01a47_0_53)
+
+## Install
+
+```bash
+pip install git+https://github.com/ichko/aesthetic-tensor
+```
 
 Instead of trying to decipher the default `__repr__` of a _tensor_
 
@@ -18,12 +30,12 @@ T
 
 - ugh...
 
-`aesthetify()` you tensors like this
+`aesthetify` you tensors like this
 
 ```py
-from aesthetic_tensor import aesthetify
+from aesthetic_tensor import monkey_patch_torch
 
-aesthetify()  # monkey patch torch.Tensor
+monkey_patch_torch()  # monkey patch torch.Tensor
 
 T.ae
 ```
