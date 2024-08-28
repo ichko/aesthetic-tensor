@@ -83,16 +83,14 @@ class MatplotlibMixin:
         plt.close()
         return ImageWrapper.from_fig(fig)
 
-    @property
-    def displot(self):
+    def displot(self, **kwargs):
         flat = self.raw.reshape(-1)
         info = self.info
-        # fig, ax = plt.subplots(1, 1, **{"dpi": 110, "figsize": (3.5, 3)})
-        fig = sns.displot(flat, kde=True, height=2.5, aspect=2)
+        fig = sns.displot(flat, kde=True, height=2.5, aspect=2, **kwargs)
         ax = fig.facet_axis(0, 0)
         mi_y, ma_y = ax.get_ylim()
-        ax.text(info.mean, ma_y, "μ", rotation=0)
-        ax.axvline(info.mean, c="k", ls="-", lw=1)
+        # ax.text(info.mean, ma_y, "μ", rotation=0)
+        # ax.axvline(info.mean, c="k", ls="-", lw=1)
         plt.tight_layout()
         plt.close()
         return ImageWrapper.from_fig(fig)
