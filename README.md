@@ -118,4 +118,4 @@ torch.rand(3, 2, 30).ae.N.imshow(figsize=(6, 1))
 
 ## Resources
 
-- Check out [lovely-tensors](https://github.com/xl0/lovely-tensors) -  a similar library.
+- A lot for inspiration for this project came from this library [lovely-tensors](https://github.com/xl0/lovely-tensors).
