@@ -11,8 +11,8 @@ class GIF:
         self.fps_val = fps
         return self
 
-    def _repr_html_(self):
-        fp = BytesIO()
+
+    def write_gif(self, fp):
         self.pils[0].save(
             fp,
             format="gif",
@@ -23,5 +23,12 @@ class GIF:
         )
         fp.seek(0)
 
+    def save(self, path):
+        with open(path, "wb+") as fp:
+            self.write_gif(fp)
+ 
+    def _repr_html_(self):
+        fp = BytesIO()
+        self.write_gif(fp)
         b64 = base64.b64encode(fp.read()).decode("ascii")
         return f"""<img src="data:image/gif;base64,{b64}" />"""
